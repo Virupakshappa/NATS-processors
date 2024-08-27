@@ -208,5 +208,4 @@ public class GetNats extends AbstractNatsProcessor {
             session.transfer(flowFile, REL_SUCCESS);
         }
     }
-
 }
