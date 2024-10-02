@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 
 /**
  *
- * @author Matthew Ring
+ * @author Viru
  */
 public abstract class AbstractNatsProcessor extends AbstractProcessor {
 

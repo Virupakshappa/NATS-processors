@@ -2,7 +2,8 @@ package org.nats;
 
 /**
  * Message handler can be passed to various operations and invoked when the operation is processed by the server.
- * @author Teppei Yagihashi
+ *
+ * @author Viru
  */
 public abstract class MsgHandler {
 	private static final Class<?>[] ARITY0 = {};

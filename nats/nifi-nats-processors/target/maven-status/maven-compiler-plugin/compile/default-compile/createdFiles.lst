@@ -1,3 +1,4 @@
+com\janadri\processors\nats\GetNatsSingleTopic$2.class
 org\nats\Connection$1.class
 org\nats\Connection$MsgProcessor.class
 org\nats\Connection$Server.class
@@ -9,7 +10,10 @@ com\janadri\processors\nats\PutNats$2.class
 com\janadri\processors\nats\PutNats$1.class
 org\nats\Connection$ReconnectTask.class
 com\janadri\processors\nats\AbstractNatsProcessor.class
+com\janadri\processors\nats\GetNats$3.class
+com\janadri\processors\nats\GetNatsSingleTopic$1.class
 com\janadri\processors\nats\GetNats$2.class
+com\janadri\processors\nats\GetNatsSingleTopic.class
 com\janadri\processors\nats\PutNats.class
 org\nats\Connection$Subscription.class
 org\nats\Connection$3.class

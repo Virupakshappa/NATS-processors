@@ -25,26 +25,24 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 /**
  *
  * @author Viru
  */
-
 @SupportsBatching
 @CapabilityDescription("Fetches messages from a NATS Messaging Topic")
 @Tags({"NATS", "Messaging", "Get", "Ingest", "Ingress", "Topic", "PubSub", "Receive"})
 @WritesAttributes({
-    @WritesAttribute(attribute = "nats.topic", description = "The name of the NATS Topic from which the message was received"),
-    @WritesAttribute(attribute = "nats.numMsgs", description = "The number or messages contained in this flowfile")
+        @WritesAttribute(attribute = "nats.topic", description = "The name of the NATS Topic from which the message was received"),
+        @WritesAttribute(attribute = "nats.numMsgs", description = "The number or messages contained in this flowfile")
 })
-public class GetNats extends AbstractNatsProcessor {
+public class GetNatsSingleTopic extends AbstractNatsProcessor {
 
     public static final PropertyDescriptor TOPIC = new PropertyDescriptor.Builder()
-            .name("Topic Names")
-            .description("Comma-separated list of NATS topics to subscribe to")
+            .name("Topic Name")
+            .description("The NATS Topic of interest")
             .required(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .expressionLanguageSupported(false)
@@ -81,7 +79,7 @@ public class GetNats extends AbstractNatsProcessor {
     private final LinkedBlockingQueue<String> inbox;
     private final MsgHandler msgHandler;
 
-    public GetNats() {
+    public GetNatsSingleTopic() {
         this.natsLock = new Object();
         // TODO: queue capacity should be a property
         this.inbox = new LinkedBlockingQueue<>();
@@ -110,44 +108,21 @@ public class GetNats extends AbstractNatsProcessor {
         return relationships;
     }
 
-    // Declare a ConcurrentHashMap to store topic-specific messages
-    private final Map<String, LinkedBlockingQueue<String>> topicMessageMap = new ConcurrentHashMap<>();
-
     @OnScheduled
     public void subscribe(final ProcessContext context) {
         synchronized (natsLock) {
             if (connection == null) {
                 connection = createConnection(context);
             }
-
-            final String topics = context.getProperty(TOPIC).getValue();
-            final String[] topicArray = topics.split(",");
-
-            for (String topic : topicArray) {
-                final String finalTopic = topic.trim();
-
-                // Create a queue for each topic
-                topicMessageMap.put(finalTopic, new LinkedBlockingQueue<>());
-
-                try {
-                    subscription = connection.subscribe(finalTopic, new MsgHandler() {
-                        @Override
-                        public void execute(String msg, String reply, String subject) {
-                            final boolean enqueued = topicMessageMap.get(finalTopic).offer(msg);  // Store the message in the map
-                            if (enqueued) {
-                                getLogger().info("Message received from topic: " + finalTopic);
-                            }
-                        }
-                    });
-                    getLogger().info("Subscribed to NATS topic: " + finalTopic);
-                } catch (IOException ex) {
-                    subscription = null;
-                    throw new ProcessException("Failed to subscribe to NATS topic: " + finalTopic, ex);
-                }
+            final String topic = context.getProperty(TOPIC).getValue();
+            try {
+                subscription = connection.subscribe(topic, msgHandler);
+            } catch (IOException ex) {
+                subscription = null;
+                throw new ProcessException("Failed to subscribe to NATS topic: " + topic, ex);
             }
         }
     }
-
 
     @OnUnscheduled
     public void unsubscribe(final ProcessContext context) {
@@ -177,58 +152,48 @@ public class GetNats extends AbstractNatsProcessor {
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
 
         final long start = System.nanoTime();
+
         final int batchSize = context.getProperty(BATCH_SIZE).asInteger();
+        final String topic = context.getProperty(TOPIC).getValue();
 
-        for (Map.Entry<String, LinkedBlockingQueue<String>> entry : topicMessageMap.entrySet()) {
-            String topic = entry.getKey();
-            LinkedBlockingQueue<String> inbox = entry.getValue();
-
-            String flowFileContent = null;
-            int numMsgs = 0;
-            if (batchSize < 2) {
-                flowFileContent = inbox.poll();  // Poll for a message from the queue for this topic
-                if (flowFileContent != null) {
-                    numMsgs = 1;
-                }
-            } else {
-                final String demarcator = context.getProperty(MESSAGE_DEMARCATOR).getValue().replace("\\n", "\n").replace("\\r", "\r").replace("\\t", "\t");
-                final List<String> batch = new LinkedList<>();
-                numMsgs = inbox.drainTo(batch, batchSize);
-                if (!batch.isEmpty()) {
-                    flowFileContent = StringUtils.join(batch, demarcator);
-                }
-            }
-
+        String flowFileContent = null;
+        int numMsgs = 0;
+        if (batchSize < 2) {
+            flowFileContent = inbox.poll();
             if (flowFileContent != null) {
-
-                FlowFile flowFile = session.create();
-                final Charset charset = Charset.forName(context.getProperty(CHARSET).getValue());
-                final byte[] flowFileContentBytes = flowFileContent.getBytes(charset);
-
-                flowFile = session.append(flowFile, new OutputStreamCallback() {
-                    @Override
-                    public void process(final OutputStream out) throws IOException {
-                        out.write(flowFileContentBytes);
-                    }
-                });
-
-                final Map<String, String> attributes = new HashMap<>();
-
-                // Setting the specific topic as an attribute
-                attributes.put("nats.topic", topic);  // Set the correct topic from the map
-                attributes.put("nats.numMsgs", Integer.toString(numMsgs));
-
-                flowFile = session.putAllAttributes(flowFile, attributes);
-
-                final long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-                session.getProvenanceReporter().receive(flowFile, "nats://" + topic, "Received " + numMsgs + " NATS messages", millis);
-                getLogger().info("Successfully received {} from NATS with {} messages in {} millis", new Object[]{flowFile, numMsgs, millis});
-
-                session.transfer(flowFile, REL_SUCCESS);
+                numMsgs = 1;
             }
+        } else {
+            final String demarcator = context.getProperty(MESSAGE_DEMARCATOR).getValue().replace("\\n", "\n").replace("\\r", "\r").replace("\\t", "\t");
+            final List<String> batch = new LinkedList<>();
+            numMsgs = inbox.drainTo(batch, batchSize);
+            if ( ! batch.isEmpty() ) {
+                flowFileContent = StringUtils.join(batch, demarcator);
+            }
+        }
+
+        if (flowFileContent != null) {
+
+            FlowFile flowFile = session.create();
+            final Charset charset = Charset.forName(context.getProperty(CHARSET).getValue());
+            final byte[] flowFileContentBytes = flowFileContent.getBytes(charset);
+
+            flowFile = session.append(flowFile, new OutputStreamCallback() {
+                @Override
+                public void process(final OutputStream out) throws IOException {
+                    out.write(flowFileContentBytes);
+                }
+            });
+
+            final Map<String, String> attributes = new HashMap<>();
+            attributes.put("nats.topic", topic);
+            attributes.put("nats.numMsgs", Integer.toString(numMsgs));
+            flowFile = session.putAllAttributes(flowFile, attributes);
+            final long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            session.getProvenanceReporter().receive(flowFile, "nats://" + topic, "Received " + numMsgs + " NATS messages", millis);
+            getLogger().info("Successfully received {} from NATS with {} messages in {} millis", new Object[]{flowFile, numMsgs, millis});
+            session.transfer(flowFile, REL_SUCCESS);
         }
     }
 
 }
-
-

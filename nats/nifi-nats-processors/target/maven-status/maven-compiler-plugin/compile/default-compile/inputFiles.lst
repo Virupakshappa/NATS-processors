@@ -2,5 +2,6 @@ C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors
 C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\com\janadri\processors\nats\GetNats.java
 C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\com\janadri\processors\nats\PutNats.java
 C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\com\janadri\processors\nats\MyProcessor.java
+C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\com\janadri\processors\nats\GetNatsSingleTopic.java
 C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\com\janadri\processors\nats\AbstractNatsProcessor.java
 C:\NiFi-v\nifi-old-release-code\nifi-custom-processor3\nats\nifi-nats-processors\src\main\java\org\nats\MsgHandler.java

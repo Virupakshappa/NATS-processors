@@ -15,8 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * which is invoked when the operation is processed by the server. A client JVM may create multiple Connection objects
  * by calling {@link #connect(Properties popts)} multiple times.
  *
- * @author Teppei Yagihashi
- *
+ * @author Viru
  */
 public class Connection {
 
@@ -145,6 +144,7 @@ public class Connection {
 		if (System.getenv("NATS_MAX_RECONNECT_ATTEMPTS") != null) popts.put("max_reconnect_attempts", Integer.parseInt(System.getenv("NATS_MAX_RECONNECT_ATTEMPTS")));
 		if (System.getenv("NATS_MAX_RECONNECT_TIME_WAIT") != null) popts.put("max_reconnect_time_wait", Integer.parseInt(System.getenv("NATS_MAX_RECONNECT_TIME_WAIT")));
 	}
+
 
 	protected Connection(Properties popts, MsgHandler handler) throws IOException, InterruptedException {
 		self = this;
@@ -283,6 +283,7 @@ public class Connection {
 			flush();
 		opts.put("reconnect", Boolean.FALSE);
 		timer.cancel();
+		//??
 		channel.close();
 		numConnections--;
 		processor.interrupt();

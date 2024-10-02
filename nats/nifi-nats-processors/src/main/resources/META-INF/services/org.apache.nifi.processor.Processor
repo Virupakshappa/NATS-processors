@@ -14,3 +14,4 @@
 # limitations under the License.
 com.janadri.processors.nats.GetNats
 com.janadri.processors.nats.PutNats
+com.janadri.processors.nats.GetNatsSingleTopic
