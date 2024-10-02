@@ -228,7 +228,6 @@ public class GetNats extends AbstractNatsProcessor {
             }
         }
     }
-
 }
 
 
